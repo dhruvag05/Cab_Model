@@ -13,7 +13,7 @@ export function UploadFallback() {
 
             <div className="flex flex-col space-y-2 text-center">
               <h3 className="text-lg font-semibold">Loading analyzer...</h3>
-              <p className="text-sm text-muted-foreground">Please wait while we initialize the audio analyzer</p>
+              <p className="text-sm text-muted-foreground">Please wait while we initialize the file analyzer</p>
             </div>
           </div>
         </div>
