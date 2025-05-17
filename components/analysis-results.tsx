@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Clock, User, Users, BarChart3, FileText, Lightbulb } from "lucide-react"
+import { Clock, User, Users, BarChart3, FileText, Lightbulb, Home } from "lucide-react"
 import { SentimentChart } from "@/components/sentiment-chart"
 import { ProjectAnalysis } from "@/components/project-analysis"
+import { BuyerRequirements } from "@/components/buyer-requirements"
 
 interface AnalysisResultsProps {
   results: {
-    salesPerson: {
+    svAgent: {
       name: string
       metrics: {
         talkTime: number
@@ -21,11 +22,18 @@ interface AnalysisResultsProps {
         questions: number
       }
     }
-    customer: {
+    buyer: {
       name: string
       metrics: {
         talkTime: number
         questions: number
+      }
+      requirements: {
+        budget: string
+        location: string
+        size: string
+        features: string[]
+        preferences: string[]
       }
     }
     sentiment: {
@@ -61,23 +69,16 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
 
   const sentimentInfo = getSentimentLabel(results.sentiment.overall)
 
-  // Mock projects for demonstration
-  const mockProjects = [
-    { name: "Netflix", category: "clone" },
-    { name: "Instagram", category: "clone" },
-    { name: "Twitter", category: "clone" },
-    { name: "WhatsApp", category: "clone" },
-  ]
-
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-6 mb-6">
+      <TabsList className="grid grid-cols-7 mb-6">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="sentiment">Sentiment Analysis</TabsTrigger>
+        <TabsTrigger value="requirements">Requirements</TabsTrigger>
+        <TabsTrigger value="sentiment">Sentiment</TabsTrigger>
         <TabsTrigger value="improvements">Improvements</TabsTrigger>
         <TabsTrigger value="transcription">Transcription</TabsTrigger>
         <TabsTrigger value="projects">Projects</TabsTrigger>
-        <TabsTrigger value="details">Technical Details</TabsTrigger>
+        <TabsTrigger value="details">Details</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -86,23 +87,23 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center">
                 <User className="mr-2 h-5 w-5" />
-                Sales Person
+                SV Agent
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold mb-4">{results.salesPerson.name}</div>
+              <div className="text-2xl font-bold mb-4">{results.svAgent.name}</div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Talk Time:</span>
-                  <span>{results.salesPerson.metrics.talkTime}%</span>
+                  <span>{results.svAgent.metrics.talkTime}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Interruptions:</span>
-                  <span>{results.salesPerson.metrics.interruptions}</span>
+                  <span>{results.svAgent.metrics.interruptions}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Questions Asked:</span>
-                  <span>{results.salesPerson.metrics.questions}</span>
+                  <span>{results.svAgent.metrics.questions}</span>
                 </div>
               </div>
             </CardContent>
@@ -112,19 +113,19 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center">
                 <Users className="mr-2 h-5 w-5" />
-                Customer
+                Buyer
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold mb-4">{results.customer.name}</div>
+              <div className="text-2xl font-bold mb-4">{results.buyer.name}</div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Talk Time:</span>
-                  <span>{results.customer.metrics.talkTime}%</span>
+                  <span>{results.buyer.metrics.talkTime}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Questions Asked:</span>
-                  <span>{results.customer.metrics.questions}</span>
+                  <span>{results.buyer.metrics.questions}</span>
                 </div>
               </div>
             </CardContent>
@@ -200,6 +201,10 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
         </div>
       </TabsContent>
 
+      <TabsContent value="requirements">
+        <BuyerRequirements requirements={results.buyer.requirements} />
+      </TabsContent>
+
       <TabsContent value="sentiment" className="space-y-4">
         <Card>
           <CardHeader>
@@ -253,7 +258,7 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
               <Lightbulb className="mr-2 h-5 w-5" />
               Improvement Suggestions
             </CardTitle>
-            <CardDescription>Actionable insights to improve future sales calls</CardDescription>
+            <CardDescription>Actionable insights to improve future calls</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
@@ -290,7 +295,6 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
       <TabsContent value="projects">
         <ProjectAnalysis 
           transcript={results.details.transcription}
-          projects={mockProjects}
         />
       </TabsContent>
 
@@ -332,7 +336,7 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
               </div>
               <div className="flex justify-between py-1">
                 <span className="font-medium">AI Model:</span>
-                <span>SalesAnalyzer v2.1</span>
+                <span>MagicAnalyzer v2.1</span>
               </div>
             </div>
           </CardContent>
