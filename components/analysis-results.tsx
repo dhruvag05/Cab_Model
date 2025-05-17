@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Clock, User, Users, BarChart3, FileText, Lightbulb } from "lucide-react"
 import { SentimentChart } from "@/components/sentiment-chart"
+import { ProjectAnalysis } from "@/components/project-analysis"
 
 interface AnalysisResultsProps {
   results: {
@@ -60,17 +61,26 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
 
   const sentimentInfo = getSentimentLabel(results.sentiment.overall)
 
+  // Mock projects for demonstration
+  const mockProjects = [
+    { name: "Netflix", category: "clone" },
+    { name: "Instagram", category: "clone" },
+    { name: "Twitter", category: "clone" },
+    { name: "WhatsApp", category: "clone" },
+  ]
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-5 mb-6">
+      <TabsList className="grid grid-cols-6 mb-6">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="sentiment">Sentiment Analysis</TabsTrigger>
         <TabsTrigger value="improvements">Improvements</TabsTrigger>
         <TabsTrigger value="transcription">Transcription</TabsTrigger>
+        <TabsTrigger value="projects">Projects</TabsTrigger>
         <TabsTrigger value="details">Technical Details</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview" className="space-y-4">
+      <TabsContent value="overview">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -121,69 +131,73 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5" />
-              Sentiment Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm text-muted-foreground">Overall Sentiment</div>
-                <div className="text-2xl font-bold">{sentimentInfo.label}</div>
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5" />
+                Sentiment Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Overall Sentiment</div>
+                  <div className="text-2xl font-bold">{sentimentInfo.label}</div>
+                </div>
+                <Badge className={sentimentInfo.color}>{results.sentiment.overall}%</Badge>
               </div>
-              <Badge className={sentimentInfo.color}>{results.sentiment.overall}%</Badge>
-            </div>
-            <Progress value={results.sentiment.overall} className="h-2 mb-6" />
+              <Progress value={results.sentiment.overall} className="h-2 mb-6" />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium mb-2">Positive Keywords</div>
-                <div className="flex flex-wrap gap-2">
-                  {results.sentiment.keywords.positive.map((keyword, i) => (
-                    <Badge key={i} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {keyword}
-                    </Badge>
-                  ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium mb-2">Positive Keywords</div>
+                  <div className="flex flex-wrap gap-2">
+                    {results.sentiment.keywords.positive.map((keyword, i) => (
+                      <Badge key={i} variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium mb-2">Negative Keywords</div>
+                  <div className="flex flex-wrap gap-2">
+                    {results.sentiment.keywords.negative.map((keyword, i) => (
+                      <Badge key={i} variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-sm font-medium mb-2">Negative Keywords</div>
-                <div className="flex flex-wrap gap-2">
-                  {results.sentiment.keywords.negative.map((keyword, i) => (
-                    <Badge key={i} variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                      {keyword}
-                    </Badge>
-                  ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center">
+                <Clock className="mr-2 h-5 w-5" />
+                Call Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm">
+                <div className="flex justify-between py-1">
+                  <span className="font-medium">Duration:</span>
+                  <span>{results.details.duration}</span>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex justify-between py-1">
+                  <span className="font-medium">Top Improvement:</span>
+                  <span>{results.improvements[0]}</span>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center">
-              <Clock className="mr-2 h-5 w-5" />
-              Call Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm">
-              <div className="flex justify-between py-1">
-                <span className="font-medium">Duration:</span>
-                <span>{results.details.duration}</span>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between py-1">
-                <span className="font-medium">Top Improvement:</span>
-                <span>{results.improvements[0]}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </TabsContent>
 
       <TabsContent value="sentiment" className="space-y-4">
@@ -271,6 +285,13 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
             </ScrollArea>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      <TabsContent value="projects">
+        <ProjectAnalysis 
+          transcript={results.details.transcription}
+          projects={mockProjects}
+        />
       </TabsContent>
 
       <TabsContent value="details" className="space-y-4">
