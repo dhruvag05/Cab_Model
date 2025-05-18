@@ -3,7 +3,6 @@ const nextConfig = {
   webpack: (config) => {
     // Enhanced memory optimization for webpack
     config.performance = {
-      ...config.resolve.fallback,
       maxEntrypointSize: 1024000, // Increased from 512000
       maxAssetSize: 1024000, // Increased from 512000
       hints: false,
