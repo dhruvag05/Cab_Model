@@ -5,12 +5,13 @@ import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { AnalysisResults } from "@/components/analysis-results"
-import { getMockAnalysisData } from "@/lib/analyze-audio"
 import { toast } from "@/hooks/use-toast"
 
 export function AudioAnalyzer() {
   const [showResults, setShowResults] = useState(false)
   const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<any>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -37,12 +38,37 @@ export function AudioAnalyzer() {
       return
     }
 
-    // In a real implementation, you would send the file to the backend
-    // For now, we'll just show the mock results
-    setShowResults(true)
+    try {
+      setLoading(true)
+      
+      const formData = new FormData()
+      formData.append('audio', audioFile)
+
+      const response = await fetch('/api/analyze-audio', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error('Analysis failed')
+      }
+
+      const data = await response.json()
+      setResults(data)
+      setShowResults(true)
+    } catch (error) {
+      console.error('Analysis error:', error)
+      toast({
+        title: "Analysis failed",
+        description: "There was an error analyzing the audio file",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (showResults) {
+  if (showResults && results) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -55,12 +81,13 @@ export function AudioAnalyzer() {
           <Button onClick={() => {
             setShowResults(false)
             setAudioFile(null)
+            setResults(null)
           }} variant="outline">
             Analyze Another Recording
           </Button>
         </div>
 
-        <AnalysisResults results={getMockAnalysisData()} />
+        <AnalysisResults results={results} />
       </div>
     )
   }
@@ -87,9 +114,10 @@ export function AudioAnalyzer() {
                   onChange={handleFileChange}
                   className="hidden"
                   id="audio-upload"
+                  disabled={loading}
                 />
                 <label htmlFor="audio-upload" className="flex-1">
-                  <Button variant="secondary" className="w-full cursor-pointer" asChild>
+                  <Button variant="secondary" className="w-full cursor-pointer" asChild disabled={loading}>
                     <span>{audioFile ? audioFile.name : "Select Audio File"}</span>
                   </Button>
                 </label>
@@ -97,10 +125,10 @@ export function AudioAnalyzer() {
 
               <Button 
                 onClick={handleAnalyze}
-                disabled={!audioFile}
+                disabled={!audioFile || loading}
                 className="w-full"
               >
-                Analyze Recording
+                {loading ? "Analyzing..." : "Analyze Recording"}
               </Button>
             </div>
           </div>
