@@ -2,13 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AssemblyAI } from 'assemblyai';
 import OpenAI from 'openai';
 
-// Initialize APIs
+// Initialize APIs with type safety
+const assemblyAiKey = process.env.ASSEMBLYAI_API_KEY || '';
+const openaiKey = process.env.OPENAI_API_KEY || '';
+
+if (!assemblyAiKey) {
+  console.error('Warning: ASSEMBLYAI_API_KEY environment variable is not set');
+}
+
+if (!openaiKey) {
+  console.error('Warning: OPENAI_API_KEY environment variable is not set');
+}
+
 const assemblyai = new AssemblyAI({
-  apiKey: process.env.ASSEMBLYAI_API_KEY || ''
+  apiKey: assemblyAiKey
 });
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: openaiKey
 });
 
 // Helper function to calculate talk time from diarization
@@ -70,112 +81,86 @@ function calculateSpeakerMetrics(utterances: any[]) {
   return metrics;
 }
 
-// Helper function to analyze conversion likelihood
-async function analyzeConversionLikelihood(transcript: string) {
-  const prompt = `
-Analyze this conversation between a Magicbricks SV agent and a buyer. Assess the likelihood of conversion (buyer booking a site visit or showing strong interest).
-
-Conversation:
-${transcript}
-
-Consider:
-1. Buyer engagement level
-2. Questions about property details
-3. Discussion about site visits
-4. Date/time scheduling attempts
-5. Address confirmation for cab booking
-6. Overall sentiment and interest
-
-Return ONLY a JSON object:
-{
-  "likelihood": number (0-100),
-  "confidence": "high/medium/low",
-  "key_indicators": ["list", "of", "positive", "signals"],
-  "concerns": ["list", "of", "potential", "objections"],
-  "next_steps": ["recommended", "actions"],
-  "stage": "initial_inquiry/requirements_gathering/property_discussion/site_visit_scheduling/conversion"
-}`;
-
+// Process Audio function implementing the provided code
+async function processAudio(audioUrl: string) {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
-      max_tokens: 600
-    });
-
-    const content = response.choices[0].message.content.trim();
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : {
-      likelihood: 50,
-      confidence: "medium",
-      key_indicators: [],
-      concerns: [],
-      next_steps: [],
-      stage: "initial_inquiry"
+    console.log("Starting transcription...");
+    console.log('Using audio URL for transcription:', audioUrl);
+    
+    // Request transcription with diarization + sentiment
+    const transcriptConfig = {
+      audio_url: audioUrl,
+      speaker_labels: true,
+      sentiment_analysis: true,
+      language_code: "en"  // Hinglish is recognized under "en"
+    };
+    
+    // Start transcription
+    const transcript = await assemblyai.transcripts.transcribe(transcriptConfig);
+    
+    // Use the full transcript for analysis
+    const fullTranscript = transcript.text || '';
+    const sentimentResults = transcript.sentiment_analysis_results || [];
+    const utterances = transcript.utterances || [];
+    
+    // Separate agent/buyer time calculation
+    const speakerDurations: Record<string, number> = {};
+    for (const utterance of utterances) {
+      const speaker = utterance.speaker;
+      const duration = utterance.end - utterance.start;
+      speakerDurations[speaker] = (speakerDurations[speaker] || 0) + duration;
+    }
+    
+    // Normalize speaker labels
+    const speakers = Object.keys(speakerDurations);
+    const agent = speakers[0] || 'A';
+    const buyer = speakers.length > 1 ? speakers[1] : 'B';
+    
+    const totalTime = Object.values(speakerDurations).reduce((a, b) => a + b, 0);
+    const agentPct = ((speakerDurations[agent] || 0) / totalTime) * 100;
+    const buyerPct = ((speakerDurations[buyer] || 0) / totalTime) * 100;
+    
+    // Send to GPT for buyer sentiment and conversion likelihood analysis
+    const gptAnalysis = await analyzeWithGpt(fullTranscript);
+    
+    return {
+      transcript_text: fullTranscript,
+      gpt_analysis: gptAnalysis,
+      talk_ratio: {
+        agent: `${agentPct.toFixed(2)}%`,
+        buyer: `${buyerPct.toFixed(2)}%`
+      },
+      speaker_sentiments: sentimentResults,
+      utterances: utterances
     };
   } catch (error) {
-    console.error('Error analyzing conversion:', error);
-    return {
-      likelihood: 50,
-      confidence: "medium",
-      key_indicators: [],
-      concerns: [],
-      next_steps: [],
-      stage: "initial_inquiry"
-    };
+    console.error('Error in process audio:', error);
+    throw error;
   }
 }
 
-// Helper function to analyze project pitching
-async function analyzeProjectPitching(transcript: string, projects: any[] = []) {
+// Helper function to analyze with GPT
+async function analyzeWithGpt(transcriptText: string) {  const safeTranscriptText = transcriptText || 'No transcript available';
   const prompt = `
-Analyze this conversation between a Magicbricks SV agent and a buyer. Determine if the agent is pitching SV projects and identify mentioned projects.
-
-Conversation:
-${transcript}
-
-Available Projects:
-${projects.map(p => `${p.name} (${p.category}): ${p.description || 'No description'}`).join('\n')}
-
-Return ONLY a JSON object:
-{
-  "is_pitching_multiple": boolean,
-  "mentioned_projects": ["list", "of", "project", "names"],
-  "cross_selling_effectiveness": number (0-100),
-  "clone_projects_mentioned": boolean,
-  "pitch_quality": "excellent/good/average/poor",
-  "recommendations": ["suggestions", "for", "improvement"]
-}`;
+You are analyzing a call between a real estate agent and a buyer. Below is the transcript.
+Your tasks:
+1. Describe the buyer's sentiment (positive, neutral, negative).
+2. Estimate the likelihood of conversion (low, medium, high).
+Transcript:
+${safeTranscriptText}
+`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
-      max_tokens: 500
+      temperature: 0.3
     });
 
-    const content = response.choices[0].message.content.trim();
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : {
-      is_pitching_multiple: false,
-      mentioned_projects: [],
-      cross_selling_effectiveness: 50,
-      clone_projects_mentioned: false,
-      pitch_quality: "average",
-      recommendations: []
-    };
+    return response.choices[0].message.content.trim();
   } catch (error) {
-    console.error('Error analyzing project pitching:', error);
-    return {
-      is_pitching_multiple: false,
-      mentioned_projects: [],
-      cross_selling_effectiveness: 50,
-      clone_projects_mentioned: false,
-      pitch_quality: "average",
-      recommendations: []
-    };
+    console.error('Error analyzing with GPT:', error);
+    return "Analysis failed. Unable to determine buyer sentiment and conversion likelihood.";
   }
 }
 
@@ -183,39 +168,76 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('audio') as File;
-    
-    if (!file) {
+      if (!file) {
       return NextResponse.json(
         { error: 'No audio file provided' },
         { status: 400 }
       );
     }
-
-    // Convert File to Buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Upload the audio file to AssemblyAI
-    const uploadResponse = await assemblyai.upload(buffer, {
-      fileName: file.name
+    // Log file metadata to help with debugging
+    console.log('Audio file received:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
     });
 
-    // Create transcription config
-    const transcriptionConfig = {
-      audio_url: uploadResponse.audioUrl,
-      language_code: 'hi', // Hindi/Hinglish support
-      speaker_labels: true,
-      speakers_expected: 2,
-      sentiment_analysis: true,
-      auto_highlights: true
-    };
-
-    // Start transcription
-    const transcript = await assemblyai.transcripts.transcribe(transcriptionConfig);
+    // Convert File to Buffer
+    const buffer = Buffer.from(await file.arrayBuffer());    // Upload the audio buffer directly to AssemblyAI
+    console.log('Uploading file to AssemblyAI:', file.name);
     
-    // Process transcript data
-    const fullTranscript = transcript.text || '';
-    const utterances = transcript.utterances || [];
-    const sentimentResults = transcript.sentiment_analysis_results || [];
+    // Use the upload method from the library
+    let uploadResponse;
+    try {
+      // Use the TypeScript any type to bypass TypeScript errors
+      const assemblyAiAny = assemblyai as any;
+      
+      if (assemblyAiAny.files && typeof assemblyAiAny.files.upload === 'function') {
+        // Create a File object from the buffer
+        const audioBlob = new Blob([buffer]);
+        const audioFile = new File([audioBlob], file.name, { type: file.type });
+        uploadResponse = await assemblyAiAny.files.upload(audioFile);
+      } else if (typeof assemblyAiAny.upload === 'function') {
+        // Try direct upload method
+        uploadResponse = await assemblyAiAny.upload(buffer, { fileName: file.name });
+      } else {
+        throw new Error('No upload method available in AssemblyAI SDK');
+      }
+      
+      console.log('Upload completed, response:', uploadResponse);
+    } catch (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error('Failed to upload audio file');
+    }    // Extract the audio URL from the upload response
+    let audioUrl = '';
+    
+    if (typeof uploadResponse === 'string') {
+      audioUrl = uploadResponse;
+    } else if (uploadResponse && typeof uploadResponse === 'object') {
+      if (uploadResponse.url) {
+        audioUrl = uploadResponse.url;
+      } else if (uploadResponse.audio_url) {
+        audioUrl = uploadResponse.audio_url;
+      } else if (uploadResponse.audioUrl) {
+        audioUrl = uploadResponse.audioUrl;
+      }
+    }
+    
+    if (!audioUrl) {
+      console.error('Invalid upload response format:', uploadResponse);
+      throw new Error('Could not extract audio URL from upload response');
+    }
+    
+    console.log('Using audio URL:', audioUrl);
+    
+    // Use our processAudio function to analyze the audio
+    const audioAnalysis = await processAudio(audioUrl);
+      // Extract data from audio analysis with null safety
+    const fullTranscript = audioAnalysis?.transcript_text || '';
+    const utterances = audioAnalysis?.utterances || [];
+    const sentimentResults = audioAnalysis?.speaker_sentiments || [];
+    const gptAnalysis = audioAnalysis?.gpt_analysis || 'No analysis available';
+    const talkRatio = audioAnalysis?.talk_ratio || { agent: '0%', buyer: '0%' };
     
     // Calculate speaker metrics
     const speakerMetrics = calculateSpeakerMetrics(utterances);
@@ -230,40 +252,42 @@ export async function POST(request: NextRequest) {
     const buyerMetrics = speakerMetrics[buyerLabel] || { utterances: 0, questions: 0, interruptions: 0 };
     const agentTalkTime = talkTime[agentLabel]?.percentage || 0;
     const buyerTalkTime = talkTime[buyerLabel]?.percentage || 0;
-
-    // Parallel processing with GPT-4
-    const [conversionData, projectData] = await Promise.all([
-      analyzeConversionLikelihood(fullTranscript),
-      analyzeProjectPitching(fullTranscript)
-    ]);
-
+    
     // Process sentiment timeline
-    const sentimentTimeline = sentimentResults.map((item, index) => ({
+    const sentimentTimeline = sentimentResults.map((item: any, index: number) => ({
       time: `${Math.floor(index * 30 / 60)}:${String(Math.floor(index * 30 % 60)).padStart(2, '0')}`,
       score: item.sentiment === 'POSITIVE' ? 80 : 
              item.sentiment === 'NEUTRAL' ? 50 : 20,
-      speaker: utterances.find(u => 
+      speaker: utterances.find((u: any) => 
         u.start <= item.start && u.end >= item.end
       )?.speaker || agentLabel
     }));
 
     // Extract sentiment keywords
     const positiveKeywords = sentimentResults
-      .filter(s => s.sentiment === 'POSITIVE')
-      .map(s => s.text.split(' ').slice(0, 3).join(' '))
+      .filter((s: any) => s.sentiment === 'POSITIVE')
+      .map((s: any) => s.text.split(' ').slice(0, 3).join(' '))
       .slice(0, 5);
     
     const negativeKeywords = sentimentResults
-      .filter(s => s.sentiment === 'NEGATIVE')
-      .map(s => s.text.split(' ').slice(0, 3).join(' '))
+      .filter((s: any) => s.sentiment === 'NEGATIVE')
+      .map((s: any) => s.text.split(' ').slice(0, 3).join(' '))
       .slice(0, 5);
 
-    // Format response
+    // Extract information from GPT analysis
+    const conversionLikelihood = gptAnalysis.includes('high') ? 'high' : 
+                                gptAnalysis.includes('medium') ? 'medium' : 'low';
+    
+    const buyerSentiment = gptAnalysis.includes('positive') ? 'positive' : 
+                          gptAnalysis.includes('neutral') ? 'neutral' : 'negative';
+    
+    // Format response with the combined data
     const results = {
       svAgent: {
-        name: "SV Agent",
+        name: "Agent",
         metrics: {
           talkTime: agentTalkTime,
+          talkPercentage: talkRatio.agent,
           interruptions: agentMetrics.interruptions,
           questions: agentMetrics.questions
         }
@@ -272,8 +296,10 @@ export async function POST(request: NextRequest) {
         name: "Buyer",
         metrics: {
           talkTime: buyerTalkTime,
+          talkPercentage: talkRatio.buyer,
           questions: buyerMetrics.questions
         },
+        sentiment: buyerSentiment,
         requirements: {
           budget: "Not specified",
           location: "Not specified",
@@ -284,7 +310,7 @@ export async function POST(request: NextRequest) {
       },
       sentiment: {
         overall: sentimentResults.length > 0 ? 
-          Math.round(sentimentResults.reduce((sum, s) => 
+          Math.round(sentimentResults.reduce((sum: number, s: any) => 
             sum + (s.sentiment === 'POSITIVE' ? 80 : s.sentiment === 'NEUTRAL' ? 50 : 20), 0
           ) / sentimentResults.length) : 50,
         timeline: sentimentTimeline,
@@ -293,26 +319,28 @@ export async function POST(request: NextRequest) {
           negative: negativeKeywords
         }
       },
-      conversion: conversionData,
-      projects: projectData,
+      conversion: {
+        likelihood: conversionLikelihood === 'high' ? 80 : conversionLikelihood === 'medium' ? 50 : 30,
+        assessment: gptAnalysis
+      },
       improvements: [
-        "Reduce talk time to allow buyer more opportunity to express needs",
+        "Ensure appropriate talk time balance with buyer",
         "Ask more open-ended questions to understand requirements better",
-        "Avoid interrupting the buyer during important discussions",
-        "Provide more specific property details and benefits",
+        "Provide specific property details and benefits",
         "Follow up with concrete next steps"
       ],
       details: {
-        duration: `${Math.floor(transcript.audio_duration / 60)}:${String(Math.floor(transcript.audio_duration % 60)).padStart(2, '0')}`,
+        duration: `${Math.floor((utterances[utterances.length - 1]?.end || 0) / 1000 / 60)}:${String(Math.floor((utterances[utterances.length - 1]?.end || 0) / 1000 % 60)).padStart(2, '0')}`,
         transcription: fullTranscript
       }
     };
 
-    return NextResponse.json(results);
-  } catch (error) {
+    return NextResponse.json(results);  } catch (error) {
+    // More detailed error logging and response
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Analysis error:', error);
     return NextResponse.json(
-      { error: 'Analysis failed' },
+      { error: 'Analysis failed', details: errorMessage },
       { status: 500 }
     );
   }

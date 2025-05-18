@@ -18,6 +18,7 @@ interface AnalysisResultsProps {
       name: string
       metrics: {
         talkTime: number
+        talkPercentage?: string
         interruptions: number
         questions: number
       }
@@ -26,8 +27,10 @@ interface AnalysisResultsProps {
       name: string
       metrics: {
         talkTime: number
+        talkPercentage?: string
         questions: number
       }
+      sentiment?: string
       requirements: {
         budget: string
         location: string
@@ -47,6 +50,10 @@ interface AnalysisResultsProps {
         positive: string[]
         negative: string[]
       }
+    }
+    conversion?: {
+      likelihood: number
+      assessment: string
     }
     improvements: string[]
     details: {
@@ -81,8 +88,7 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
         <TabsTrigger value="details">Details</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <TabsContent value="overview">        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center">
@@ -95,7 +101,7 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Talk Time:</span>
-                  <span>{results.svAgent.metrics.talkTime}%</span>
+                  <span>{results.svAgent.metrics.talkPercentage || `${results.svAgent.metrics.talkTime}%`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Interruptions:</span>
@@ -118,14 +124,17 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold mb-4">{results.buyer.name}</div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
+              <div className="space-y-2">                <div className="flex justify-between text-sm">
                   <span>Talk Time:</span>
-                  <span>{results.buyer.metrics.talkTime}%</span>
+                  <span>{results.buyer.metrics.talkPercentage || `${results.buyer.metrics.talkTime}%`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Questions Asked:</span>
                   <span>{results.buyer.metrics.questions}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Sentiment:</span>
+                  <span className="capitalize">{results.buyer.sentiment || "Not analyzed"}</span>
                 </div>
               </div>
             </CardContent>
@@ -174,9 +183,7 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="mt-4">
+        </div>        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center">
@@ -198,6 +205,34 @@ export function AnalysisResults({ results }: AnalysisResultsProps) {
               </div>
             </CardContent>
           </Card>
+          
+          {results.conversion && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center">
+                  <Home className="mr-2 h-5 w-5" />
+                  Conversion Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Conversion Likelihood</div>
+                    <Progress value={results.conversion.likelihood} className="h-2" />
+                    <div className="mt-1 text-sm font-medium text-right">
+                      {results.conversion.likelihood < 40 ? 'Low' : 
+                       results.conversion.likelihood < 70 ? 'Medium' : 'High'}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm font-medium mb-1">GPT Analysis</div>
+                    <div className="text-sm text-muted-foreground">{results.conversion.assessment}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </TabsContent>
 

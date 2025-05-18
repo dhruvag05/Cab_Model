@@ -1,7 +1,24 @@
 import { AssemblyAI } from 'assemblyai';
+import OpenAI from 'openai';
+
+// Ensure API keys are available
+const assemblyAiKey = process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY;
+const openaiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
+if (!assemblyAiKey) {
+  console.error('AssemblyAI API key is not set. Please add it to your environment variables.');
+}
+
+if (!openaiKey) {
+  console.error('OpenAI API key is not set. Please add it to your environment variables.');
+}
 
 const client = new AssemblyAI({
-  apiKey: process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || ''
+  apiKey: assemblyAiKey || ''
+});
+
+const openai = new OpenAI({
+  apiKey: openaiKey || ''
 });
 
 export async function analyzeAudio(file: File): Promise<any> {

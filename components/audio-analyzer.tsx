@@ -12,15 +12,18 @@ export function AudioAnalyzer() {
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<any>(null)
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!file.type.startsWith('audio/')) {
+    // Allow audio files and explicitly check for mpeg files which might not have audio/ MIME type
+    if (!file.type.startsWith('audio/') && 
+        !file.type.includes('mpeg') && 
+        !file.name.toLowerCase().endsWith('.mp3') &&
+        !file.name.toLowerCase().endsWith('.mpeg')) {
       toast({
         title: "Invalid file type",
-        description: "Please select an audio file",
+        description: "Please select an audio file (including MP3/MPEG)",
         variant: "destructive",
       })
       return
@@ -72,10 +75,9 @@ export function AudioAnalyzer() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-semibold">Analysis Results</h2>
+          <div>            <h2 className="text-xl font-semibold">Analysis Results</h2>
             <p className="text-sm text-muted-foreground">
-              Audio: {audioFile?.name} ({(audioFile?.size / (1024 * 1024)).toFixed(1)} MB)
+              Audio: {audioFile?.name} ({audioFile && (audioFile.size / (1024 * 1024)).toFixed(1)} MB)
             </p>
           </div>
           <Button onClick={() => {
@@ -107,10 +109,9 @@ export function AudioAnalyzer() {
             </div>
 
             <div className="flex flex-col gap-4 w-full">
-              <div className="flex items-center gap-2">
-                <input
+              <div className="flex items-center gap-2">                <input
                   type="file"
-                  accept="audio/*"
+                  accept="audio/*,.mp3,.mpeg"
                   onChange={handleFileChange}
                   className="hidden"
                   id="audio-upload"
