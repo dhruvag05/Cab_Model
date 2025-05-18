@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AssemblyAI } from 'assemblyai';
 import OpenAI from 'openai';
+import { Buffer, File } from 'node:buffer';
 
 // Initialize APIs with type safety
 const assemblyAiKey = process.env.ASSEMBLYAI_API_KEY || '';
@@ -167,24 +168,26 @@ ${safeTranscriptText}
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('audio') as File;
-      if (!file) {
+    const file = formData.get('audio') as unknown as File;
+    
+    if (!file || !(file instanceof Blob)) {
       return NextResponse.json(
-        { error: 'No audio file provided' },
+        { error: 'No valid audio file provided' },
         { status: 400 }
       );
     }
     
     // Log file metadata to help with debugging
     console.log('Audio file received:', {
-      name: file.name,
       type: file.type,
       size: file.size
     });
 
-    // Convert File to Buffer
-    const buffer = Buffer.from(await file.arrayBuffer());    // Upload the audio buffer directly to AssemblyAI
-    console.log('Uploading file to AssemblyAI:', file.name);
+    // Convert Blob to Buffer
+    const buffer = Buffer.from(await file.arrayBuffer());
+    
+    // Upload the audio buffer directly to AssemblyAI
+    console.log('Uploading file to AssemblyAI');
     
     // Use the upload method from the library
     let uploadResponse;
@@ -194,8 +197,8 @@ export async function POST(request: NextRequest) {
       
       if (assemblyAiAny.files && typeof assemblyAiAny.files.upload === 'function') {
         // Create a File object from the buffer
-        const audioBlob = new Blob([buffer]);
-        const audioFile = new File([audioBlob], file.name, { type: file.type });
+        const audioBlob = new Blob([buffer], { type: file.type });
+        const audioFile = new File([buffer], file.name, { type: file.type });
         uploadResponse = await assemblyAiAny.files.upload(audioFile);
       } else if (typeof assemblyAiAny.upload === 'function') {
         // Try direct upload method
