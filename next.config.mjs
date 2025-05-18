@@ -4,8 +4,15 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
+      path: false,
+      os: false,
     };
+    
     return config;
+  },
+  // Ensure proper handling of browser-specific code
+  experimental: {
+    serverActions: true,
   },
 };
 
