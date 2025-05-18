@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config) => {
+    // Increase memory limits for webpack
+    config.performance = {
+      ...config.performance,
+      maxEntrypointSize: 512000,
+      maxAssetSize: 512000,
+      hints: false,
+    };
+    
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -10,9 +18,13 @@ const nextConfig = {
     
     return config;
   },
-  // Ensure proper handling of browser-specific code
   experimental: {
     serverActions: true,
+  },
+  // Add memory optimization settings
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
   },
 };
 
