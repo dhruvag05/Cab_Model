@@ -157,7 +157,7 @@ ${safeTranscriptText}
       temperature: 0.3
     });
 
-    return response.choices[0].message.content.trim();
+    return response?.choices?.[0]?.message?.content?.trim();
   } catch (error) {
     console.error('Error analyzing with GPT:', error);
     return "Analysis failed. Unable to determine buyer sentiment and conversion likelihood.";
