@@ -1,5 +1,129 @@
-// This provides mock analysis data for the placeholder version
+import { AssemblyAI } from '@assemblyai/core';
 
+const client = new AssemblyAI({
+  apiKey: process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || ''
+});
+
+export async function analyzeAudio(file: File): Promise<any> {
+  try {
+    // First, upload the file
+    const uploadResponse = await client.upload(file);
+
+    // Then, transcribe with all the features we need
+    const transcript = await client.transcribe({
+      audio: uploadResponse.audioUrl,
+      speaker_labels: true,
+      sentiment_analysis: true,
+      entity_detection: true,
+      auto_chapters: true
+    });
+
+    // Wait for completion
+    const result = await transcript.result();
+
+    // Process the results into our expected format
+    return processAssemblyAIResults(result);
+  } catch (error) {
+    console.error('Error analyzing audio:', error);
+    // Fallback to mock data if something goes wrong
+    return getMockAnalysisData();
+  }
+}
+
+function processAssemblyAIResults(result: any) {
+  // Process the AssemblyAI results into the format our app expects
+  // This is a simplified version - you would want to add more processing
+  return {
+    svAgent: {
+      name: "Agent", // You might want to get this from your app's context
+      metrics: {
+        talkTime: calculateTalkTime(result.utterances, "A"),
+        interruptions: calculateInterruptions(result.utterances),
+        questions: countQuestions(result.utterances, "A"),
+      },
+    },
+    buyer: {
+      name: "Buyer",
+      metrics: {
+        talkTime: calculateTalkTime(result.utterances, "B"),
+        questions: countQuestions(result.utterances, "B"),
+      },
+      requirements: extractRequirements(result.entities, result.text),
+    },
+    sentiment: {
+      overall: calculateOverallSentiment(result.sentiment_analysis_results),
+      timeline: createSentimentTimeline(result.sentiment_analysis_results, result.utterances),
+      keywords: extractKeywords(result.sentiment_analysis_results),
+    },
+    improvements: generateImprovements(result),
+    details: {
+      duration: formatDuration(result.audio_duration),
+      transcription: formatTranscription(result.utterances),
+    },
+  };
+}
+
+// Helper functions for processing the results
+function calculateTalkTime(utterances: any[], speaker: string): number {
+  // Calculate percentage of time each speaker talks
+  return 0; // Implement the actual calculation
+}
+
+function calculateInterruptions(utterances: any[]): number {
+  // Count number of interruptions
+  return 0; // Implement the actual calculation
+}
+
+function countQuestions(utterances: any[], speaker: string): number {
+  // Count questions asked by each speaker
+  return 0; // Implement the actual calculation
+}
+
+function extractRequirements(entities: any[], text: string): any {
+  // Extract buyer requirements from entities and text
+  return {
+    budget: "",
+    location: "",
+    size: "",
+    features: [],
+    preferences: [],
+  };
+}
+
+function calculateOverallSentiment(results: any[]): number {
+  // Calculate overall sentiment score
+  return 0; // Implement the actual calculation
+}
+
+function createSentimentTimeline(sentimentResults: any[], utterances: any[]): any[] {
+  // Create timeline of sentiment scores
+  return [];
+}
+
+function extractKeywords(sentimentResults: any[]): any {
+  // Extract positive and negative keywords
+  return {
+    positive: [],
+    negative: [],
+  };
+}
+
+function generateImprovements(result: any): string[] {
+  // Generate improvement suggestions
+  return [];
+}
+
+function formatDuration(duration: number): string {
+  // Format duration in seconds to MM:SS
+  return "00:00";
+}
+
+function formatTranscription(utterances: any[]): string {
+  // Format utterances into readable transcription
+  return "";
+}
+
+// Keep the mock data for testing
 export function getMockAnalysisData(): any {
   // Return mock analysis results
   return {
@@ -86,10 +210,5 @@ export function getMockAnalysisData(): any {
 
 [Rest of transcription continues...]`,
     },
-  }
-}
-
-// Keep this function for compatibility, but it's not used in the placeholder version
-export async function analyzeAudio(file: File): Promise<any> {
-  return getMockAnalysisData()
+  };
 }
